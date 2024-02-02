@@ -1,0 +1,123 @@
+#include "dht.h" //INCLUSÃO DE BIBLIOTECA
+#include <Servo.h>
+
+Servo servo9;
+int pos = 0;
+const int pinoDHT11 = A2; //PINO ANALÓGICO UTILIZADO PELO DHT11
+dht DHT; //VARIÁVEL DO TIPO DHT
+int ledVermelho = 7;
+int ledVerde = 6;
+int buzzer = 8;
+int pinoTrig = 13;
+int pinoEcho = 12;
+int lampada = 3;
+int ventilador = 2;
+float distancia = 0;
+int tempo = 0;
+
+#define NOTE_G3 196
+#define NOTE_A3 220
+#define NOTE_B3 247
+#define NOTE_C4 262
+
+int  melody[] = {NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4};
+int noteDurations[] = {4, 8, 8, 4, 4, 4, 4, 4};
+
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(ledVermelho, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(pinoTrig, OUTPUT);
+  pinMode(pinoEcho, INPUT);
+  servo9.attach(9);
+}
+ 
+void loop()
+{
+  playMelody(melody, noteDurations, 8);
+  delay(5000);
+
+  DHT.read11(pinoDHT11); //LÊ AS INFORMAÇÕES DO SENSOR
+  digitalWrite(pinoTrig, HIGH);//O gatilho envia sinal pela porta Digital
+  delay(10);
+  digitalWrite(pinoTrig, LOW);//O sinal é cortado pra ser enviado dnv
+  tempo = pulseIn(pinoEcho, HIGH);
+  distancia = tempo/58.2;
+
+  if (distancia < 100)
+  {
+    servo9.attach(9); //on
+    //Abre
+    for (pos >= 0; pos <=90; pos +=50)
+    {
+      servo9.write(pos);
+      delay(500); // Wait for 30 millisecond(s)
+    }
+    //Fecha
+    for (pos <= 90; pos >=0; pos -=50)
+    {
+      servo9.write(pos);
+      delay(2000);
+    }
+    Serial.print("O gato veio comer :D ");
+    digitalWrite(ledVerde, HIGH);
+    delay(3000);
+    digitalWrite(ledVerde, LOW);
+  
+    if (DHT.temperature > 27)
+    {
+      Serial.print("A temperatura esta a: "); //IMPRIME O TEXTO NA SERIAL
+      Serial.print(DHT.temperature, 0); //IMPRIME NA SERIAL O VALOR DE UMIDADE MEDIDO E REMOVE A PARTE DECIMAL
+      Serial.print(" e o gato esta a: ");
+  	  Serial.print (distancia);
+      Serial.println(" cm de distancia, logo ligamos o ventilador para refrescá-lo.");
+      digitalWrite(ventilador, HIGH);
+      delay(30000); // Dura 5 minutos.
+      digitalWrite(ventilador, LOW);
+    }
+
+    else if (DHT.temperature < 18)
+    {
+      Serial.print("A temperatura esta a: "); //IMPRIME O TEXTO NA SERIAL
+      Serial.print(DHT.temperature, 0); //IMPRIME NA SERIAL O VALOR DE UMIDADE MEDIDO E REMOVE A PARTE DECIMAL
+      Serial.print(" e o gato esta a: ");
+  	  Serial.print (distancia);
+      Serial.println(" cm de distancia, logo ligamos a lâmpada para aquece-lo.");
+      digitalWrite(ventilador, HIGH);
+      delay(30000); // Dura 5 minutos.
+      digitalWrite(ventilador, LOW);
+    }
+  }
+
+  else
+  {
+    Serial.print("O gato não veio comer >:( ");
+    digitalWrite(ledVermelho, HIGH);
+    delay(3000);
+    digitalWrite(ledVermelho, LOW);
+  
+  }
+}
+
+void playMelody(int melody[], int noteDurations[], int numberOfNotes )
+{
+  for (int thisNote = 0; thisNote < numberOfNotes; thisNote++) {
+
+  /* to calculate the note duration, take one second divided by the note type.
+
+  e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc. */
+
+  int noteDuration = 1000 / noteDurations[thisNote];
+  tone(buzzer, melody[thisNote], noteDuration);
+
+  /* to distinguish the notes, set a minimum time between them.
+
+  the note's duration + 30% seems to work well */
+
+  int pauseBetweenNotes = noteDuration * 1.30;
+  delay(pauseBetweenNotes);
+  noTone(buzzer); 
+  }
+}
